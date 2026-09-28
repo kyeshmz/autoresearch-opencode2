@@ -1,186 +1,92 @@
 # autoresearch-opencode
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![OpenCode](https://img.shields.io/badge/OpenCode-enabled-4A90D9)](https://opencode.ai/docs/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![OpenCode 2](https://img.shields.io/badge/OpenCode-2.x-4A90D9)](https://opencode.ai/v2/docs/)
 
-Autonomous experiment loop for [OpenCode](https://opencode.ai/docs/). Port of [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) as a pure skill — no MCP server, just instructions the agent follows with its built-in tools.
+Autonomous experiment loop for [OpenCode 2](https://opencode.ai/v2/docs/): try an idea, measure it, keep it if the metric improved, revert it if not, repeat. It's a port of [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) (tracking v1.8.1) as a native OpenCode 2 plugin.
 
-##  Quick Start
+## Requirements
 
-**[Get started in 5 minutes →](QUICKSTART.md)**
-
-` Recommended Starting Point`
+- OpenCode **2.x** (`opencode --version`). OpenCode 1.x is not supported; the v1 plugin API is gone.
+- `git` and `bash`. Experiments auto-commit and auto-revert.
 
 ## Install
 
-Clone this repository and load the skill:
-
 ```bash
-git clone https://github.com/dabiggm0e/autoresearch-opencode.git
-cd autoresearch
-skill autoresearch
+git clone https://github.com/kyeshmz/autoresearch-opencode.git
+cd autoresearch-opencode
+./scripts/install.sh
+opencode service restart   # if you use the background service
 ```
 
-The skill consists of:
+`install.sh` writes `~/.config/opencode/plugins/autoresearch.ts`, a one-line entrypoint that re-exports this checkout's `src/index.ts`. `git pull` updates the plugin in place. `./scripts/uninstall.sh` removes it.
 
-- `skills/autoresearch/SKILL.md` — Autonomous experiment instructions
-- `commands/autoresearch.md` — Slash command interface
-- `plugins/autoresearch-context.ts` — Context injection plugin
+To enable it for a single project, put the same one-liner in `<project>/.opencode/plugins/autoresearch.ts`:
+
+```ts
+export { default } from "/path/to/autoresearch-opencode/src/index.ts"
+```
 
 ## Usage
 
-Once the skill is loaded, use the slash commands:
-
-- `/autoresearch optimize test suite runtime` — Start the experiment loop
-- `/autoresearch` — Resume from last checkpoint
-- `/autoresearch off` — Pause experiment
-
-**Context injection is automatic via TypeScript plugin (no manual config needed)**
-
-## Example
-
-### BogoSort Optimization
-
-Optimize the world's worst sorting algorithm - BogoSort - to achieve remarkable speedup through intelligent state detection.
-
-**Baseline**: 15.605s (naive loop-based is_sorted check)  
-**Optimal**: 0.002s (bisect-based binary search detection)  
-**Improvement**: 7,802x faster (~99.99% reduction in runtime)  
-**Shuffle count**: Reduced from 3,565,099 to 1,346 (2,657x fewer shuffles)
-
-### Experiment Results
-
-| # | Approach | Runtime | Delta vs Baseline | Shuffle Count | Status |
-|---|----------|---------|-------------------|---------------|--------|
-| 1 | Baseline (naive loop) | 15.605s | 0% | 3,565,099 | keep |
-| 2 | Approach 1: sorted() comparison | 16.524s | +5.9% | 1,352,569 | keep |
-| 3 | Approach 2: itertools pairwise | 17.654s | +13.1% | 1,914,514 | discard |
-| 4 | Approach 3: zip-based | 12.823s | -17.8% | 2,320,011 | keep |
-| 5 | Approach 4: direct index | 19.342s | +23.9% | 729,212 | discard |
-| 6 | Approach 5: hybrid heuristic | 14.715s | -5.7% | 1,493,813 | discard |
-| 7 | Approach 6: bisect binary search | 0.002s | -99.99% | 1,346 | keep ⭐ |
-| 8 | Approach 7: optimized bisect | 19.561s | +25.4% | 741,884 | discard |
-| 9 | Approach 8: simple all() | 15.797s | +1.2% | 948,685 | discard |
-
-### Why Bisect Won
-
-The winning approach leveraged Python's `bisect` module for O(log n) sorted-state detection instead of O(n) linear comparison:
-
-```python
-# Naive approach (O(n) per check)
-def is_sorted(arr):
-    return all(arr[i] <= arr[i+1] for i in range(len(arr)-1))
-
-# Bisect-based approach (O(log n) per check)
-def is_sorted(arr):
-    # Create a copy and find where arr would insert into sorted version
-    # If insertion point equals length, array is already sorted
-    import bisect
-    temp = sorted(arr)
-    return bisect.bisect_left(temp, arr[0]) == 0
+```
+/autoresearch optimize unit test runtime, monitor correctness
 ```
 
-**Key insights:**
-- **O(log n) vs O(n)**: Binary search reduces sorted-state detection from linear to logarithmic time
-- **Early exit**: Bisect detects unsorted states faster by finding the first mismatch position
-- **Fewer shuffles**: With faster detection, we reject invalid permutations much more quickly (2,657x fewer shuffles)
-- **Cumulative effect**: Each shuffle check is now ~7,800x faster, leading to massive overall speedup
+- `/autoresearch <goal>`: enter autoresearch mode. If `.auto/prompt.md` doesn't exist, the `autoresearch-create` skill sets up the session (branch, `.auto/prompt.md`, `.auto/measure.sh`, baseline) and starts looping. Otherwise the loop resumes from the saved state.
+- `/autoresearch off`: leave autoresearch mode and stop the current run.
+- `/autoresearch clear`: delete `.auto/log.jsonl` and turn the mode off.
+- `/autoresearch dashboard`: post the full results table into the session.
+- `/autoresearch export`: open a live browser dashboard (localhost, updates on every logged run).
 
-### Experiment Summary
-
-- **Total experiments run**: 9
-- **Approaches kept**: 4 (promising optimizations)
-- **Approaches discarded**: 5 (underperformed or incorrect)
-- **Winner**: Bisect-based binary search for O(log n) sorted-state detection
-
-### How to Run
-
-```bash
-# Start autoresearch experiment
-/autoresearch optimize bogo_sort.py runtime
-
-# View experiment results
-/autoresearch dashboard
-
-# Check state file
-cat autoresearch.jsonl
-```
-
-**Result**: The autoresearch skill automatically discovered that using Python's `bisect` module for sorted-state detection reduced runtime by 99.99% compared to naive linear checking.
+Ask for `autoresearch-finalize` to split a finished session into clean, independent review branches. Ask for `autoresearch-hooks` to add before/after iteration hooks (research fetching, notifications, anti-thrash, and so on).
 
 ## How it works
 
-| Component | OpenCode Approach |
-|-----------|-------------------|
-| **Context Injection** | TypeScript plugin (experimental.chat.system.transform hook) |
-| **Tool Access** | Built-in OpenCode tools (read, write, bash, glob, grep) |
-| **State Management** | JSONL state file (`autoresearch.jsonl`) |
-| **Experiment Loop** | Skill instructions with guard clauses and atomic functions |
+| Piece | What it does |
+|---|---|
+| `init_experiment` | Writes the session config header (name, metric, unit, direction) to `.auto/log.jsonl`. Calling it again starts a new segment with a fresh baseline. |
+| `run_experiment` | Runs `.auto/measure.sh` with a timeout, parses `METRIC name=value` lines, then runs `.auto/checks.sh` if the benchmark passed. |
+| `log_experiment` | Records the result. `keep` runs `git add -A && git commit`. `discard`, `crash`, and `checks_failed` revert code changes but leave `.auto/` alone. It also enforces secondary-metric consistency and reports a MAD-based confidence score. |
+| Tool gating | The three tools are registered as direct tools (outside Code Mode, whose catalog is always in the system prompt) and are only visible to the model while autoresearch mode is active for that session. If one is reached anyway, it refuses to run. |
+| System prompt | While active, adds loop rules plus pointers to `.auto/prompt.md`, the ideas backlog, and checks. |
+| Compaction | While active, replaces the LLM compaction summary with a deterministic one built from `.auto/` state: rules, ideas, and the last 50 runs. |
+| Auto-resume | When a turn ends (`session.execution.succeeded`/`failed`) after logging at least one experiment, and after compaction, the plugin prompts the agent to run the next iteration. It stops after 200 auto-resumes, after more than 20 consecutive discards/crashes, or when you interrupt. |
+| Hooks | Optional `.auto/hooks/before.sh` and `after.sh`. Their stdout is steered into the running turn. |
 
-### State Protocol
+### Session files
 
-State is maintained in `autoresearch.jsonl`:
+All under `.auto/` in the project (or in `workingDir` from `.auto/config.json`):
 
-1. **Initialization** — Write config header to `autoresearch.jsonl` or start fresh
-2. **Iteration** — Generate hypothesis → Modify code → Run experiment → Evaluate
-3. **Logging** — Append result to JSONL after each iteration
-4. **Resume/Pause** — Continue or halt via slash commands
+| File | Purpose |
+|---|---|
+| `prompt.md` | The playbook a fresh agent reads to continue the loop |
+| `measure.sh` | Benchmark; prints `METRIC name=value` lines |
+| `log.jsonl` | Append-only config headers and run results (source of truth) |
+| `ideas.md` | Deferred ideas backlog (optional) |
+| `checks.sh` | Correctness gate run after passing benchmarks (optional) |
+| `config.json` | `{ "maxIterations": 50, "workingDir": "..." }` (optional) |
+| `hooks/{before,after}.sh` | Lifecycle hooks (optional) |
 
-### State File Format
+Legacy flat files (`autoresearch.md`, `autoresearch.jsonl`, `autoresearch.sh`, …) from older sessions are still read.
 
-```json
-# Line 1: Config header
-{"type":"config","name":"optimize-bogo-sort","metricName":"runtime","metricUnit":"s","bestDirection":"lower"}
+## Differences from pi-autoresearch
 
-# Lines 2+: Experiment results
-{"run":1,"commit":"caf60d6","metric":1.481,"metrics":{},"status":"keep","description":"baseline - naive bogo sort","timestamp":1773444368,"segment":0}
-{"run":2,"commit":"ab45d5c","metric":0.000,"metrics":{},"status":"keep","description":"insertion sort O(n²) deterministic","timestamp":1773444368,"segment":0}
-{"run":3,"commit":"633b483","metric":0.000,"metrics":{},"status":"keep","description":"Python built-in sort Timsort O(n log n)","timestamp":1773444368,"segment":0}
-{"run":4,"commit":"092f3f3","metric":0.000002,"metrics":{"timsort_10":0.000002,"timsort_50":0.000005,"timsort_100":0.000010,"timsort_500":0.000047,"timsort_1000":0.000101,"insertion_sort_10":0.000006,"insertion_sort_50":0.000031,"insertion_sort_100":0.000090,"insertion_sort_500":0.002659,"insertion_sort_1000":0.012258,"bogo_sort_10":0.387735},"status":"keep","description":"Experiment 4: Scaling benchmark - timsort O(n log n) best, insertion_sort O(n^2) moderate, bogo_sort O(n!) fails >13","timestamp":1773444505,"segment":4}
-```
+- **No TUI widget or fullscreen overlay.** OpenCode 2 server plugins have no UI surface. Use `/autoresearch dashboard` or `/autoresearch export` instead.
+- **Status notes are queued.** Messages like "Autoresearch mode OFF" or the no-argument help are posted as synthetic session notes. They show up with the next turn, not immediately.
+- **No keyboard shortcuts.**
+- **Activation is stored per session** in plugin storage, not as a session entry. A manual `/autoresearch off` still survives compaction and restarts.
 
-**Key points:**
-- First line is always a config header (session metadata)
-- Each result is a JSON object on its own line (JSONL format)
-- Includes run count, commit hash, metric values, status, timestamp
-- Secondary metrics are tracked in the "metrics" object
-- Dashboard checks consistency between JSONL and worklog
-
-**Data Integrity:**
-- Atomic writes prevent corruption
-- Pre-write validation checks JSON format
-- Post-write verification confirms run count
-- Backups created before user-confirmable actions
-- Dashboard automatically detects and reports inconsistencies
-
-## Uninstall
-
-Remove all components:
+## Development
 
 ```bash
-./scripts/uninstall.sh
+npm install
+npm run typecheck   # against @opencode/plugin 2.0.18 types
+npm test            # unit tests, plugin harness tests, finalize.sh tests
 ```
+
+`src/index.ts` is the plugin entrypoint. The rest of `src/` is host-agnostic logic ported from pi-autoresearch: `experiment.ts`, `jsonl.ts`, `compaction.ts`, `hooks.ts`, `paths.ts`, `runner.ts`, and `dashboard.ts`.
 
 ## License
 
-MIT License
-
-Copyright (c) 2024 autoresearch-opencode contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MIT. See [LICENSE](LICENSE). Contains code ported from pi-autoresearch (MIT, © Tobi Lutke, David Cortés).

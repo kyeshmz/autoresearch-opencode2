@@ -1,0 +1,45 @@
+{
+  "name": "opencode-autoresearch",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Autonomous experiment loop for OpenCode 2 — run, measure, keep or discard. Port of pi-autoresearch.",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "autoresearch",
+    "experiment",
+    "optimization",
+    "benchmark"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyeshmz/autoresearch-opencode.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "skills",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.mjs && bash tests/finalize_test.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "2.0.18",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}

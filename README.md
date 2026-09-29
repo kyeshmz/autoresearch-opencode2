@@ -1,4 +1,4 @@
-# autoresearch-opencode
+# autoresearch-opencode2
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![OpenCode 2](https://img.shields.io/badge/OpenCode-2.x-4A90D9)](https://opencode.ai/v2/docs/)
@@ -13,8 +13,8 @@ Autonomous experiment loop for [OpenCode 2](https://opencode.ai/v2/docs/): try a
 ## Install
 
 ```bash
-git clone https://github.com/kyeshmz/autoresearch-opencode.git
-cd autoresearch-opencode
+git clone https://github.com/kyeshmz/autoresearch-opencode2.git
+cd autoresearch-opencode2
 ./scripts/install.sh
 opencode service restart   # if you use the background service
 ```
@@ -24,7 +24,7 @@ opencode service restart   # if you use the background service
 To enable it for a single project, put the same one-liner in `<project>/.opencode/plugins/autoresearch.ts`:
 
 ```ts
-export { default } from "/path/to/autoresearch-opencode/src/index.ts"
+export { default } from "/path/to/autoresearch-opencode2/src/index.ts"
 ```
 
 ## Usage
